@@ -31,14 +31,14 @@ struct sbi_mem_alloc {
 	 * If the bit 0 is zero the memory is available.
 	 * If the bit 0 is non-zero the memory is allocated.
 	 */
-	unsigned long prev_size;
+	unsigned int prev_size;
 	/**
 	 * @size: size of memory block
 	 *
 	 * If the bit 0 is zero the memory is available.
 	 * If the bit 0 is non-zero the memory is allocated.
 	 */
-	unsigned long size;
+	unsigned int size;
 	/**
 	 * @mem: allocated memory
 	 */
