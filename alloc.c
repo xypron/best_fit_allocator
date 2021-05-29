@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 
 #include <malloc.h>
+#include <stdio.h>
 #include "alloc.h"
 
 static struct sbi_scratch *gscratch;
@@ -25,6 +26,7 @@ int sbi_scratch_init(struct sbi_scratch *scratch)
 	if (!gscratch)
 		return 1;
 
+	gscratch->mem.prev_size = sizeof(unsigned long) | 1UL;
 	gscratch->mem.size = SBI_SCRATCH_SIZE -
 			    (scratch->mem.mem - (unsigned char *)scratch);
 
@@ -45,6 +47,7 @@ unsigned long sbi_scratch_alloc_offset(unsigned long size)
 	struct sbi_mem_alloc *best = NULL;	
 	struct sbi_scratch *scratch = sbi_scratch_thishart_ptr();
 	struct sbi_mem_alloc *current = &scratch->mem;	
+	struct sbi_mem_alloc *succ;
 	struct sbi_mem_alloc *end =
 		(void *)((char *)scratch + SBI_SCRATCH_SIZE);
 
@@ -67,13 +70,22 @@ unsigned long sbi_scratch_alloc_offset(unsigned long size)
 	/* Split free block */
 	if (best->size > size + SBI_MEM_ALLOC_SIZE) {
 		current = (struct sbi_mem_alloc *)&best->mem[size];
+		current->prev_size = size | 1UL;
 		current->size = best->size - size -
 				SBI_MEM_ALLOC_SIZE;
 		best->size = size;
+	} else {
+		current = best;
 	}
+
+	succ = (struct sbi_mem_alloc *)
+	       &current->mem[current->size & ~1UL];
 
 	/* Mark block as used */
 	best->size |= 1UL;
+
+	if (succ < end)
+		succ->prev_size = best->size;
 
 	return best->mem - (unsigned char *)scratch;
 }
@@ -93,34 +105,33 @@ void sbi_scratch_free_offset(unsigned long offset)
 	struct sbi_mem_alloc *succ = NULL;
 	struct sbi_mem_alloc *end =
 		(void *)((char *)scratch + SBI_SCRATCH_SIZE);
-	struct sbi_mem_alloc *found = NULL;
 
-	/* Find block to free in linked list */
-	for(; current < end;
-	    current = (struct sbi_mem_alloc *)
-	    	      &current->mem[current->size & ~1UL]) {
-	
-		if (current < freed) {
-			pred = current;
-		} else if (current == freed) {
-			found = current;
-		} else if (current > freed) {
-			succ = current;
-			break;
-		}
-	}
-	if (!found)
+	if (!offset)
 		return;
+
+	pred = (struct sbi_mem_alloc *)
+	       ((char *)freed - (freed->prev_size & ~1UL) - SBI_MEM_ALLOC_SIZE);
+	succ = (struct sbi_mem_alloc *)
+	       &freed->mem[current->size & ~1UL];
 
 	/* Mark block as free */
 	freed->size &= ~1UL;
 
 	/* Coalesce free blocks */
-	if (pred && !(pred->size & 1UL)) {
+	if (pred >= &scratch->mem && !(pred->size & 1UL)) {
 		pred->size += SBI_MEM_ALLOC_SIZE + freed->size;
 		freed = pred;
 	}
-	if (succ && !(succ->size & 1UL)) {
-		freed->size += SBI_MEM_ALLOC_SIZE + succ->size;
+	if (succ < end) {
+		succ->prev_size = freed->size;
+		if (!(succ->size & 1UL)) {
+			struct sbi_mem_alloc *succ2;
+
+			succ2 = (struct sbi_mem_alloc *)
+				&succ->mem[current->size & ~1UL];
+			freed->size += SBI_MEM_ALLOC_SIZE + succ->size;
+			if (succ2 < end)
+				succ2->prev_size = freed->size;
+		}
 	}
 }

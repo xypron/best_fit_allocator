@@ -7,7 +7,7 @@
 
 #define ALIGN(x, a) ((typeof(x))((unsigned long)x + (a - 1) & ~(a - 1)))
 
-#define SBI_SCRATCH_SIZE	(0x1000)
+#define SBI_SCRATCH_SIZE	(0x2000)
 
 #define SBI_MEM_ALLOC_SIZE (offsetof(struct sbi_mem_alloc, mem))
 
