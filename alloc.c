@@ -45,11 +45,12 @@ unsigned long sbi_scratch_alloc_offset(unsigned long size, const char *owner)
 	struct sbi_mem_alloc *best = NULL;	
 	struct sbi_scratch *scratch = sbi_scratch_thishart_ptr();
 	struct sbi_mem_alloc *current = &scratch->mem;	
-	void *end = (char *)scratch + SBI_SCRATCH_SIZE;
+	struct sbi_mem_alloc *end =
+		(void *)((char *)scratch + SBI_SCRATCH_SIZE);
 
 	size = ALIGN(size, sizeof(unsigned long));
 
-	for(; current < (struct sbi_mem_alloc *)end;
+	for(; current < end;
 	    current = (struct sbi_mem_alloc *)
 	    	      &current->mem[current->size & ~1UL]) {
 		if (current->size & 1UL)
@@ -88,9 +89,11 @@ void sbi_scratch_free_offset(unsigned long offset)
 	struct sbi_mem_alloc *current = &scratch->mem;	
 	struct sbi_mem_alloc *pred = NULL;
 	struct sbi_mem_alloc *succ = NULL;
-	void *end = (char *)scratch + SBI_SCRATCH_SIZE;
+	struct sbi_mem_alloc *end =
+		(void *)((char *)scratch + SBI_SCRATCH_SIZE);
+	struct sbi_mem_alloc *found = NULL;
 
-	for(; current < (struct sbi_mem_alloc *)end;
+	for(; current < end;
 	    current = (struct sbi_mem_alloc *)
 	    	      &current->mem[current->size & ~1UL]) {
 	
@@ -99,12 +102,17 @@ void sbi_scratch_free_offset(unsigned long offset)
 				pred = NULL;
 			else
 				pred = current;
+		} else if (current == freed) {
+			found = current;
 		} else if (current > freed) {
 			if(!(current->size & 1UL))
 				succ = current;
 			break;
 		}
 	}
+	if (!found)
+		return;
+
 	freed->size &= ~1UL;
 	if (pred) {
 		pred->size += SBI_MEM_ALLOC_SIZE + freed->size;

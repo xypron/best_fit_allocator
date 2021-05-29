@@ -33,6 +33,10 @@ int main()
 
 	sbi_scratch_print();
 
+	printf("\nfreeing 0x0123\n");
+	sbi_scratch_free_offset(0x0123);
+	sbi_scratch_print();
+
 	printf("\nfreeing 0x06c0\n");
 	sbi_scratch_free_offset(0x06c0);
 	sbi_scratch_print();
