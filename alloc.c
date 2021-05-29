@@ -35,6 +35,8 @@ int sbi_scratch_init(struct sbi_scratch *scratch)
 /**
  * sbi_scratch_alloc_offset() - allocate scratch memory
  *
+ * An address ordered list is used to implement a best fit allocator.
+ *
  * @size:	requested size
  * @owner:	owner of the allocated memory block
  * Return:	offset of allocated block on succcess, 0 on failure
@@ -50,6 +52,7 @@ unsigned long sbi_scratch_alloc_offset(unsigned long size, const char *owner)
 
 	size = ALIGN(size, sizeof(unsigned long));
 
+	/* Find best fitting free block */
 	for(; current < end;
 	    current = (struct sbi_mem_alloc *)
 	    	      &current->mem[current->size & ~1UL]) {
@@ -63,6 +66,7 @@ unsigned long sbi_scratch_alloc_offset(unsigned long size, const char *owner)
 	if (!best)
 		return 0;
 	
+	/* Split free block */
 	if (best->size > size + SBI_MEM_ALLOC_SIZE) {
 		current = (struct sbi_mem_alloc *)&best->mem[size];
 		current->size = best->size - size -
@@ -70,8 +74,10 @@ unsigned long sbi_scratch_alloc_offset(unsigned long size, const char *owner)
 		current->owner = NULL;
 		best->size = size;
 	}
-	best->owner = owner;
+
+	/* Mark block as used */
 	best->size |= 1UL;
+	best->owner = owner;
 
 	return best->mem - (unsigned char *)scratch;
 }
@@ -93,32 +99,32 @@ void sbi_scratch_free_offset(unsigned long offset)
 		(void *)((char *)scratch + SBI_SCRATCH_SIZE);
 	struct sbi_mem_alloc *found = NULL;
 
+	/* Find block to free in linked list */
 	for(; current < end;
 	    current = (struct sbi_mem_alloc *)
 	    	      &current->mem[current->size & ~1UL]) {
 	
 		if (current < freed) {
-			if (current->size & 1UL)
-				pred = NULL;
-			else
-				pred = current;
+			pred = current;
 		} else if (current == freed) {
 			found = current;
 		} else if (current > freed) {
-			if(!(current->size & 1UL))
-				succ = current;
+			succ = current;
 			break;
 		}
 	}
 	if (!found)
 		return;
 
+	/* Mark block as free */
 	freed->size &= ~1UL;
-	if (pred) {
+
+	/* Coalesce free blocks */
+	if (pred && !(pred->size & 1UL)) {
 		pred->size += SBI_MEM_ALLOC_SIZE + freed->size;
 		freed = pred;
 	}
-	if (succ) {
+	if (succ && !(succ->size & 1UL)) {
 		freed->size += SBI_MEM_ALLOC_SIZE + succ->size;
 	}
 }
