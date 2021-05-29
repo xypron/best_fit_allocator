@@ -26,16 +26,19 @@ struct sbi_scratch *sbi_scratch_thishart_ptr();
  */
 struct sbi_mem_alloc {
 	/**
+	 * @prev_size: size of previous memory block
+	 *
+	 * If the bit 0 is zero the memory is available.
+	 * If the bit 0 is non-zero the memory is allocated.
+	 */
+	unsigned long prev_size;
+	/**
 	 * @size: size of memory block
 	 *
 	 * If the bit 0 is zero the memory is available.
 	 * If the bit 0 is non-zero the memory is allocated.
 	 */
 	unsigned long size;
-	/**
-	 * @owner: owner of memory block
-	 */
-	const char *owner;
 	/**
 	 * @mem: allocated memory
 	 */
@@ -64,10 +67,9 @@ int sbi_scratch_init(struct sbi_scratch *scratch);
  * sbi_scratch_alloc_offset() - allocate scratch memory
  *
  * @size:	requested size
- * @owner:	owner of the allocated memory block
  * Return:	offset of allocated block on succcess, 0 on failure
  */
-unsigned long sbi_scratch_alloc_offset(unsigned long size, const char *owner);
+unsigned long sbi_scratch_alloc_offset(unsigned long size);
 
 /**
  * sbi_scratch_free_offset() - free scratch memory

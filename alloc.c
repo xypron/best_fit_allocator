@@ -27,7 +27,6 @@ int sbi_scratch_init(struct sbi_scratch *scratch)
 
 	gscratch->mem.size = SBI_SCRATCH_SIZE -
 			    (scratch->mem.mem - (unsigned char *)scratch);
-	gscratch->mem.owner = NULL;
 
 	return 0;
 }
@@ -38,10 +37,9 @@ int sbi_scratch_init(struct sbi_scratch *scratch)
  * An address ordered list is used to implement a best fit allocator.
  *
  * @size:	requested size
- * @owner:	owner of the allocated memory block
  * Return:	offset of allocated block on succcess, 0 on failure
  */
-unsigned long sbi_scratch_alloc_offset(unsigned long size, const char *owner)
+unsigned long sbi_scratch_alloc_offset(unsigned long size)
 {
 	unsigned long best_size = ~0UL;
 	struct sbi_mem_alloc *best = NULL;	
@@ -71,13 +69,11 @@ unsigned long sbi_scratch_alloc_offset(unsigned long size, const char *owner)
 		current = (struct sbi_mem_alloc *)&best->mem[size];
 		current->size = best->size - size -
 				SBI_MEM_ALLOC_SIZE;
-		current->owner = NULL;
 		best->size = size;
 	}
 
 	/* Mark block as used */
 	best->size |= 1UL;
-	best->owner = owner;
 
 	return best->mem - (unsigned char *)scratch;
 }

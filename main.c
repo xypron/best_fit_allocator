@@ -24,7 +24,7 @@ int main()
 {
 	sbi_scratch_init(NULL);
 	for (;;) {
-		unsigned long addr = sbi_scratch_alloc_offset(789, NULL);
+		unsigned long addr = sbi_scratch_alloc_offset(789);
 
 		if (!addr)
 			break;
