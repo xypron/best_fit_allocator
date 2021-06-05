@@ -2,18 +2,23 @@
 
 #include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "alloc.h"
+
+#define MAX_ALLOC 32
 
 static void sbi_scratch_print(void)
 {
 	struct sbi_scratch *scratch = sbi_scratch_thishart_ptr();
-	struct sbi_mem_alloc *current = &scratch->mem;	
+	struct sbi_mem_alloc *current = &scratch->mem;
 	void *end = (char *)scratch + SBI_SCRATCH_SIZE;
+	unsigned int next = get_first_free();
+	unsigned count = 0;
 
 	for(; current < (struct sbi_mem_alloc *)end;
 	    current = (struct sbi_mem_alloc *)
 	    	      &current->mem[current->size & ~1UL]) {
-	
+
 		printf("%4s %4lx@%04x, prev %4s %4lx@%04x\n",
 		       current->size & 1UL ? "used" : "free",
 		       current->size & ~1UL,
@@ -23,47 +28,55 @@ static void sbi_scratch_print(void)
 		       current->mem - (unsigned char *)scratch -
 		       (current->prev_size & ~1UL) - SBI_MEM_ALLOC_SIZE);
 	}
+
+	printf("free:\n");
+	for (; next; next = current->next) {
+		current = (void *)((char *)scratch + next);
+		printf("@%04x: prev @%04x, next @%04x\n",
+		       next + SBI_MEM_ALLOC_SIZE,
+		       current->prev ? current->prev + SBI_MEM_ALLOC_SIZE : 0,
+		       current->next ? current->next + SBI_MEM_ALLOC_SIZE : 0);
+		if (++count > 18)
+			exit(1);
+	}
 }
 
 int main()
 {
+	unsigned long mem[MAX_ALLOC] = {0};
+	int key;
+	int step = 0;
+
+	srand(0);
+
 	sbi_scratch_init(NULL);
 	for (;;) {
-		unsigned long addr;
+		unsigned long idx;
 
-		printf("\nallocating %lx\n", 789UL);
-		addr = sbi_scratch_alloc_offset(789);
-		if (!addr) {
-			printf("allocation failed\n");
+		key = getc(stdin);
+		if (key == 0x1b)
 			break;
+
+		idx = rand() % MAX_ALLOC;
+
+		printf("step %d\n", ++step);
+		if (mem[idx]) {
+			printf("\nfreeing 0x%04x\n", mem[idx]);
+			sbi_scratch_free_offset(mem[idx]);
+			mem[idx] = 0;
+		} else {
+			unsigned long size =
+				((rand() % 512) >> (rand() % 3)) + 1;
+
+			printf("\nallocating %lx\n", size);
+			mem[idx] = sbi_scratch_alloc_offset(size);
+			if (!mem[idx]) {
+				printf("allocation failed\n");
+				continue;
+			}
 		}
 		sbi_scratch_print();
 	}
-
-
-	printf("\nfreeing 0x0388\n");
-	sbi_scratch_free_offset(0x0388);
-	sbi_scratch_print();
-
-	printf("\nfreeing 0x06a8\n");
-	sbi_scratch_free_offset(0x06a8);
-	sbi_scratch_print();
-
-	printf("\nfreeing 0x1008\n");
-	sbi_scratch_free_offset(0x1008);
-	sbi_scratch_print();
-
-	printf("\nfreeing 0x0ce8\n");
-	sbi_scratch_free_offset(0x0ce8);
-	sbi_scratch_print();
-
-	printf("\nfreeing 0x09c8\n");
-	sbi_scratch_free_offset(0x09c8);
-	sbi_scratch_print();
-
-	printf("\nfreeing 0x0068\n");
-	sbi_scratch_free_offset(0x0068);
-	sbi_scratch_print();
 
 	return 0;
 }
