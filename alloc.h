@@ -5,19 +5,13 @@
 
 // #define offsetof(type, member) __builtin_offsetof (type, member)
 
-#define ALIGN(x, a) ((typeof(x))((unsigned long)x + (a - 1) & ~(a - 1)))
+#define ALIGN(x, a) ((typeof(x))((unsigned long)(x + (a - 1)) & ~(a - 1)))
 
 #define SBI_SCRATCH_SIZE	(0x1000)
 
 #define SBI_MEM_ALLOC_SIZE (offsetof(struct sbi_mem_alloc, mem))
 
-typedef struct {
-	int dummy;
-} spinlock_t;
-
-static void spin_lock(spinlock_t *lock) {};
-
-static void spin_unlock(spinlock_t *lock) {};
+typedef int spinlock_t;
 
 struct sbi_scratch *sbi_scratch_thishart_ptr();
 

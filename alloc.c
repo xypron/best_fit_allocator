@@ -6,6 +6,7 @@
 
 static struct sbi_scratch *gscratch;
 static unsigned int first_free;
+static spinlock_t extra_lock;
 
 struct sbi_scratch *sbi_scratch_thishart_ptr()
 {
@@ -16,6 +17,17 @@ unsigned int get_first_free(void)
 {
 	return first_free;
 }
+
+static void spin_lock(spinlock_t *lock)
+{
+	while (*lock);
+	*lock = 1;
+};
+
+static void spin_unlock(spinlock_t *lock)
+{
+	*lock = 0;
+};
 
 /**
  * sbi_scratch_init() - initialize scratch table and allocator
@@ -70,6 +82,8 @@ unsigned long sbi_scratch_alloc_offset(unsigned long size)
 
 	size = ALIGN(size, 2 * sizeof(unsigned int));
 
+	spin_lock(&extra_lock);
+
 	/* Find best fitting free block */
 	for (next = first_free; next; next = current->next) {
 		current = (void *)((char *)scratch + next);
@@ -78,8 +92,10 @@ unsigned long sbi_scratch_alloc_offset(unsigned long size)
 		best_size = current->size;
 		best = current;
 	}
-	if (!best)
+	if (!best) {
+		spin_unlock(&extra_lock);
 		return 0;
+	}
 
 	if (best->prev)
 		pred = (void *)((char *)scratch + best->prev);
@@ -126,6 +142,8 @@ unsigned long sbi_scratch_alloc_offset(unsigned long size)
 	if (succ < end)
 		succ->prev_size = current->size;
 
+	spin_unlock(&extra_lock);
+
 	return best->mem - (unsigned char *)scratch;
 }
 
@@ -153,6 +171,8 @@ void sbi_scratch_free_offset(unsigned long offset)
 
 	pred = (struct sbi_mem_alloc *)
 	       ((char *)freed - (freed->prev_size & ~1U) - SBI_MEM_ALLOC_SIZE);
+
+	spin_lock(&extra_lock);
 
 	/* Mark block as free */
 	freed->size &= ~1U;
@@ -202,4 +222,5 @@ void sbi_scratch_free_offset(unsigned long offset)
 			succ->prev_size = freed->size;
 		}
 	}
+	spin_unlock(&extra_lock);
 }

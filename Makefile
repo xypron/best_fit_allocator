@@ -1,6 +1,6 @@
 
 all:
-	gcc alloc.c main.c -g -o alloc
+	gcc alloc.c main.c -g -Wall -Wextra -o alloc
 
 check: all
 	./alloc

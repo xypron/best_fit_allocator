@@ -19,7 +19,7 @@ static void sbi_scratch_print(void)
 	    current = (struct sbi_mem_alloc *)
 	    	      &current->mem[current->size & ~1UL]) {
 
-		printf("%4s %4lx@%04x, prev %4s %4lx@%04x\n",
+		printf("%4s %4lx@%04lx, prev %4s %4lx@%04lx\n",
 		       current->size & 1UL ? "used" : "free",
 		       current->size & ~1UL,
 		       current->mem - (unsigned char *)scratch,
@@ -32,7 +32,7 @@ static void sbi_scratch_print(void)
 	printf("free:\n");
 	for (; next; next = current->next) {
 		current = (void *)((char *)scratch + next);
-		printf("@%04x: prev @%04x, next @%04x\n",
+		printf("@%04lx: prev @%04lx, next @%04lx\n",
 		       next + SBI_MEM_ALLOC_SIZE,
 		       current->prev ? current->prev + SBI_MEM_ALLOC_SIZE : 0,
 		       current->next ? current->next + SBI_MEM_ALLOC_SIZE : 0);
@@ -61,7 +61,7 @@ int main()
 
 		printf("step %d\n", ++step);
 		if (mem[idx]) {
-			printf("\nfreeing 0x%04x\n", mem[idx]);
+			printf("\nfreeing 0x%04lx\n", mem[idx]);
 			sbi_scratch_free_offset(mem[idx]);
 			mem[idx] = 0;
 		} else {
