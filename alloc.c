@@ -55,6 +55,10 @@ unsigned long sbi_scratch_alloc_offset(unsigned long size)
 	unsigned int best_size = ~0U;
 	struct sbi_mem_alloc *best = NULL;
 	struct sbi_scratch *scratch = sbi_scratch_thishart_ptr();
+	/*
+	struct sbi_scratch *scratch =
+		sbi_hartid_to_scratch(sbi_scratch_last_hartid());
+	*/
 	unsigned int next;
 	struct sbi_mem_alloc *current;
 	struct sbi_mem_alloc *pred, *succ;
@@ -133,6 +137,10 @@ unsigned long sbi_scratch_alloc_offset(unsigned long size)
 void sbi_scratch_free_offset(unsigned long offset)
 {
 	struct sbi_scratch *scratch = sbi_scratch_thishart_ptr();
+	/*
+	struct sbi_scratch *scratch =
+		sbi_hartid_to_scratch(sbi_scratch_last_hartid());
+	*/
 	struct sbi_mem_alloc *freed = (void *)((unsigned char *)scratch +
 				      offset - SBI_MEM_ALLOC_SIZE);
 	struct sbi_mem_alloc *pred;
@@ -140,7 +148,7 @@ void sbi_scratch_free_offset(unsigned long offset)
 	struct sbi_mem_alloc *end =
 		(void *)((char *)scratch + SBI_SCRATCH_SIZE);
 
-	if (!offset)
+	if (!offset || !(freed->size & 1U))
 		return;
 
 	pred = (struct sbi_mem_alloc *)
@@ -149,8 +157,8 @@ void sbi_scratch_free_offset(unsigned long offset)
 	/* Mark block as free */
 	freed->size &= ~1U;
 
-	/* Coalesce free blocks */
 	if (pred >= &scratch->mem && !(pred->size & 1U)) {
+		/* Coalesce free blocks */
 		pred->size += SBI_MEM_ALLOC_SIZE + freed->size;
 		freed = pred;
 	} else {
@@ -167,12 +175,12 @@ void sbi_scratch_free_offset(unsigned long offset)
 		first_free = offset - SBI_MEM_ALLOC_SIZE;
 	}
 
-	succ = (struct sbi_mem_alloc *)
-	       &freed->mem[freed->size & ~1U];
+	succ = (struct sbi_mem_alloc *)&freed->mem[freed->size & ~1U];
 	if (succ < end) {
 		if (!(succ->size & 1U)) {
 			struct sbi_mem_alloc *succ2;
 
+			/* Coalesce free blocks */
 			succ2 = (struct sbi_mem_alloc *)
 				&succ->mem[succ->size & ~1U];
 			freed->size += SBI_MEM_ALLOC_SIZE + succ->size;
