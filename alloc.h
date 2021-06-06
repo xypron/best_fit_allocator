@@ -5,6 +5,8 @@
 
 // #define offsetof(type, member) __builtin_offsetof (type, member)
 
+#define __aligned(x) __attribute__((aligned(x)))
+
 #define ALIGN(x, a) ((typeof(x))((unsigned long)(x + (a - 1)) & ~(a - 1)))
 
 #define SBI_SCRATCH_SIZE	(0x1000)
@@ -19,6 +21,9 @@ unsigned int get_first_free(void);
 
 /**
  * struct sbi_mem_alloc - memory allocation
+ *
+ * This structure describes a block of allocated or free memory.
+ * The fields @prev and @next are only used for free blocks.
  */
 struct sbi_mem_alloc {
 	/**
@@ -39,14 +44,23 @@ struct sbi_mem_alloc {
 	union {
 		/**
 		 * @mem: allocated memory
+		 *
+		 * The macro SBI_MEM_ALLOC_SIZE provides the offset of @mem in
+		 * the sbi_mem_alloc structure.
 		 */
 		unsigned char mem[0];
 		struct {
+			/**
+			 * @prev: offset of preceeding block in free block list
+			 */
 			unsigned int prev;
+			/**
+			 * @next: offset of succceeding block in free block list
+			 */
 			unsigned int next;
 		};
 	};
-};
+} __aligned(2 * sizeof(int));
 
 /**
  * struct sbi_scratch - representation of per-HART scratch space
