@@ -77,12 +77,14 @@ unsigned long sbi_scratch_alloc_offset(unsigned long size)
 	struct sbi_mem_alloc *end =
 		(void *)((char *)scratch + SBI_SCRATCH_SIZE);
 
-	if (!first_free)
-		return 0;
-
 	size = ALIGN(size, 2 * sizeof(unsigned int));
 
 	spin_lock(&extra_lock);
+
+	if (!first_free) {
+		spin_unlock(&extra_lock);
+		return 0;
+	}
 
 	/* Find best fitting free block */
 	for (next = first_free; next; next = current->next) {

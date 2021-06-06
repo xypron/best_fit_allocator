@@ -1,6 +1,6 @@
 
 all:
-	gcc alloc.c main.c -g -Wall -Wextra -o alloc
+	$(CROSS_COMPILE)gcc alloc.c main.c -g -Wall -Wextra -o alloc
 
 check: all
 	./alloc
