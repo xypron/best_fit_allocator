@@ -81,7 +81,10 @@ unsigned long sbi_scratch_alloc_offset(unsigned long size)
 
 	spin_lock(&extra_lock);
 
-	if (!first_free) {
+	/*
+	 * size = 0 would not leave enough space for the prev and next fields.
+	 */
+	if (!first_free || !size) {
 		spin_unlock(&extra_lock);
 		return 0;
 	}
