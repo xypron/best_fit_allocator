@@ -57,8 +57,6 @@ int sbi_scratch_init(struct sbi_scratch *scratch)
 /**
  * sbi_scratch_alloc_offset() - allocate scratch memory
  *
- * An address ordered list is used to implement a best fit allocator.
- *
  * @size:	requested size
  * Return:	offset of allocated block on succcess, 0 on failure
  */
@@ -171,13 +169,15 @@ void sbi_scratch_free_offset(unsigned long offset)
 	struct sbi_mem_alloc *end =
 		(void *)((char *)scratch + SBI_SCRATCH_SIZE);
 
-	if (!offset || !(freed->size & 1U))
+	spin_lock(&extra_lock);
+
+	if (!offset || !(freed->size & 1U)) {
+		spin_unlock(&extra_lock);
 		return;
+	}
 
 	pred = (struct sbi_mem_alloc *)
 	       ((char *)freed - (freed->prev_size & ~1U) - SBI_MEM_ALLOC_SIZE);
-
-	spin_lock(&extra_lock);
 
 	/* Mark block as free */
 	freed->size &= ~1U;
