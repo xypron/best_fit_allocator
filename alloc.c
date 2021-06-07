@@ -159,8 +159,7 @@ void sbi_scratch_free_offset(unsigned long offset)
 	*/
 	struct sbi_mem_alloc *freed = (void *)((unsigned char *)scratch +
 				      offset - SBI_MEM_ALLOC_SIZE);
-	struct sbi_mem_alloc *pred;
-	struct sbi_mem_alloc *succ;
+	struct sbi_mem_alloc *pred, *succ;
 	struct sbi_mem_alloc *end =
 		(void *)((char *)scratch + SBI_SCRATCH_SIZE);
 
@@ -171,24 +170,20 @@ void sbi_scratch_free_offset(unsigned long offset)
 		return;
 	}
 
-	pred = (struct sbi_mem_alloc *)
-	       ((char *)freed - (freed->prev_size & ~1U) - SBI_MEM_ALLOC_SIZE);
-
 	/* Mark block as free */
 	freed->size &= ~1U;
 
+	pred = (struct sbi_mem_alloc *)
+	       ((char *)freed - (freed->prev_size & ~1U) - SBI_MEM_ALLOC_SIZE);
 	if (pred >= &scratch->mem && !(pred->size & 1U)) {
 		/* Coalesce free blocks */
-		pred->size += SBI_MEM_ALLOC_SIZE + freed->size;
+		pred->size += freed->size + SBI_MEM_ALLOC_SIZE;
 		freed = pred;
 	} else {
-
 		/* Insert at start of free list */
 		if (first_free) {
-			unsigned int pos = (char *)freed - (char *)scratch;
-
 			succ = (void *)((char *)scratch + first_free);
-			succ->prev = pos;
+			succ->prev = offset - SBI_MEM_ALLOC_SIZE;
 		}
 		freed->next = first_free;
 		freed->prev = 0;
