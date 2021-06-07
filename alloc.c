@@ -75,14 +75,17 @@ unsigned long sbi_scratch_alloc_offset(unsigned long size)
 	struct sbi_mem_alloc *end =
 		(void *)((char *)scratch + SBI_SCRATCH_SIZE);
 
+	/*
+	 * When allocating zero bytes we still need space
+	 * for the prev and next fields.
+	 */
+	if (!size)
+		size = 1;
 	size = ALIGN(size, 2 * sizeof(unsigned int));
 
 	spin_lock(&extra_lock);
 
-	/*
-	 * size = 0 would not leave enough space for the prev and next fields.
-	 */
-	if (!first_free || !size) {
+	if (!first_free) {
 		spin_unlock(&extra_lock);
 		return 0;
 	}
