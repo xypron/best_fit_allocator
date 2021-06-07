@@ -20,10 +20,12 @@ static void sbi_scratch_print(void)
 	    	      &current->mem[current->size & ~1UL]) {
 
 		printf("%4s %4lx@%04lx, prev %4s %4lx@%04lx\n",
-		       current->size & 1UL ? "used" : "free",
+		       current->size & 1UL ?
+		       "\e[31mused\e[0m" : "\e[32mfree\e[0m",
 		       current->size & ~1UL,
 		       current->mem - (unsigned char *)scratch,
-		       current->prev_size & 1UL ? "used" : "free",
+		       current->prev_size & 1UL ?
+		       "\e[31mused\e[0m" : "\e[32mfree\e[0m",
 		       current->prev_size & ~1UL,
 		       current->mem - (unsigned char *)scratch -
 		       (current->prev_size & ~1UL) - SBI_MEM_ALLOC_SIZE);
