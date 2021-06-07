@@ -85,11 +85,6 @@ unsigned long sbi_scratch_alloc_offset(unsigned long size)
 
 	spin_lock(&extra_lock);
 
-	if (!first_free) {
-		spin_unlock(&extra_lock);
-		return 0;
-	}
-
 	/* Find best fitting free block */
 	for (next = first_free; next; next = current->next) {
 		current = (void *)((char *)scratch + next);
@@ -103,6 +98,7 @@ unsigned long sbi_scratch_alloc_offset(unsigned long size)
 		return 0;
 	}
 
+	/* Update free list */
 	if (best->prev)
 		pred = (void *)((char *)scratch + best->prev);
 	else
@@ -112,37 +108,33 @@ unsigned long sbi_scratch_alloc_offset(unsigned long size)
 	else
 		succ = NULL;
 
-	/* Split free block */
 	if (best->size > size + SBI_MEM_ALLOC_SIZE) {
-		unsigned int pos;
-
+		/* Split block, use the lower part for allocation. */
 		current = (struct sbi_mem_alloc *)&best->mem[size];
-		pos = (char *)current - (char *)scratch;
+		next = (char *)current - (char *)scratch;
 		current->size = best->size - size -
 				SBI_MEM_ALLOC_SIZE;
 		current->prev = best->prev;
 		current->next = best->next;
 		current->prev_size = size | 1U;
 		best->size = size;
-		if (pred)
-			pred->next = pos;
-		else
-			first_free = pos;
 		if (succ)
-			succ->prev = pos;
+			succ->prev = next;
 	} else {
-		if (pred)
-			pred->next = best->next;
-		else
-			first_free = best->next;
+		next = best->next;
 		if (succ)
 			succ->prev = best->prev;
 		current = best;
 	}
 
+	if (pred)
+		pred->next = next;
+	else
+		first_free = next;
+
+	/* Update memory block list */
 	succ = (struct sbi_mem_alloc *)&current->mem[current->size];
 
-	/* Mark block as used */
 	best->size |= 1U;
 
 	if (succ < end)
